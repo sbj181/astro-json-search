@@ -1,0 +1,225 @@
+---
+// Import the JSON data directly if it's static and stored in the project
+import data from './public/converted_data_reprepared.json';
+---
+<html>
+<head>
+    <title>Filterable Table with Astro</title>
+    <style>
+        body {
+            font-family: 'Helvetica', sans-serif;
+            font-size: 14px;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            cursor: pointer; /* Change cursor to pointer on hover */
+            position: relative; /* Required for positioning the sorting indicators */
+        }
+
+        /* CSS for sorting indicators */
+        th::after {
+            content: '';
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Indicate ascending sort */
+        th.asc::after {
+            content: '▲'; /* Unicode up arrow */
+        }
+
+        /* Indicate descending sort */
+        th.desc::after {
+            content: '▼'; /* Unicode down arrow */
+        }
+
+        th, td {
+            padding: .5em;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        th {
+            background-color: #272650;
+            color: white;
+            min-width: 60px;
+        }
+        button {
+            cursor: pointer;
+            margin: .25em;
+        }
+        .top-wrap {
+            top: 0;
+            z-index: 2;
+            width: 100%;
+            background-color: white;
+            position: fixed;
+        }
+        .title-wrap {
+            padding: 1em 1em 0;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .table-wrap {
+            
+            padding: 1em;
+        }
+        .search-wrap {
+            width: 100%;
+            padding: 0 1em 0em;
+            box-sizing: border-box;
+        }
+        .search-wrap input {
+            width: 100%;
+            padding: 1em;
+            
+            box-sizing: border-box;
+        }
+        @media (max-width: 600px) {
+            body {
+                font-size: 12px;
+            }
+            th, td {
+                padding: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="top-wrap">
+        <div class="title-wrap">
+            <h1>Filterable Table</h1>
+        </div>
+        <div class="search-wrap">
+            <h2>Search below</h2>
+            <input type="text" id="searchInput" placeholder="Type to search...">
+        </div>
+    </section>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date of URL Request</th>
+                    <th>Address</th>
+                    <th>City</th>
+                    <th>State</th>
+                    <th>Zip</th>
+                    <th>Account</th>
+                    <th>Production URL</th>
+                    <th>Actions</th> 
+                    <th>Alliance Champion(s)</th> 
+                    <th>Source Code / Card Type</th> 
+                    <th>Request Form Completed / Approved</th> 
+                    <th>Live Date</th> 
+                    <!-- Add more columns as needed -->
+                </tr>
+            </thead>
+            <tbody>
+                {data.map((item) => (
+                    <tr>
+                        <td>{item['Date of URL Request Form Submission']}</td>
+                        <td>{item['Address']}</td>
+                        <td>{item['City']}</td>
+                        <td>{item['State']}</td>
+                        <td>{item['Zip']}</td>
+                        <td>{item['ACCOUNT\/IDN']}</td>
+                        <td><a href={item['Production URL']}>{item['Production URL']}</a></td>
+                        <td>
+                            <!-- Use a data attribute to store the URL -->
+                            <button data-url={item['Production URL']} onclick="copyToClipboard(event)">Copy URL</button>
+                            <button data-url={item['Production URL']} onclick="sendUrlToEmail(event)">Send Email</button>
+                        </td>
+                        <td>{item['Alliance Champion(s)']}</td>
+                        <td>{item['Source Code /            Card Type']}</td>
+                        <td>{item['Request Form Completed \/ Approved']}</td>
+                        <td>{item['Live Date']}</td>
+                        <!-- Add more columns as needed -->
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+            const comparer = (idx, asc) => (a, b) => ((v1, v2) => 
+                v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2)
+            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+        
+            // Function to sort and toggle classes for indicators
+            const sortTable = (th, idx) => {
+                const table = th.closest('table');
+                let asc = th.classList.toggle('asc', !th.classList.contains('asc'));
+                th.classList.toggle('desc', !asc);
+                Array.from(table.querySelectorAll('th')).forEach(otherTh => {
+                    if (otherTh !== th) {
+                        otherTh.classList.remove('asc', 'desc');
+                    }
+                });
+                Array.from(table.querySelectorAll('tbody tr'))
+                    .sort(comparer(idx, asc))
+                    .forEach(tr => table.querySelector('tbody').appendChild(tr));
+            };
+        
+            // Add click event to all headers
+            document.querySelectorAll('th').forEach(th => th.addEventListener('click', () => sortTable(th, Array.from(th.parentNode.children).indexOf(th))));
+        
+            // Adjusted copyToClipboard function to handle event parameter and extract URL from the button's data attribute
+            window.copyToClipboard = function(event) {
+                // Extract URL from data-url attribute of the clicked button
+                const urlToCopy = event.target.getAttribute('data-url');
+                navigator.clipboard.writeText(urlToCopy).then(function() {
+                    console.log('Copying to clipboard was successful!');
+                }, function(err) {
+                    console.error('Could not copy text: ', err);
+                });
+            };
+
+            window.sendUrlToEmail = function(event) {
+                const urlToEmail = event.target.getAttribute('data-url');
+                // You can customize the subject and body text as needed
+                const emailSubject = encodeURIComponent('Check out this URL');
+                const emailBody = encodeURIComponent(`Here is the URL you asked for: ${urlToEmail}`);
+                // Construct the mailto link
+                const mailtoLink = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+                // Open the default mail client with the constructed mailto link
+                window.location.href = mailtoLink;
+            };
+
+    
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('keyup', function() {
+                const value = searchInput.value.toLowerCase();
+                const rows = document.querySelectorAll('table tbody tr');
+                rows.forEach(row => {
+                    const isVisible = row.textContent.toLowerCase().includes(value);
+                    row.style.display = isVisible ? '' : 'none';
+                });
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', adjustTableTopMargin);
+        window.addEventListener('resize', adjustTableTopMargin);
+
+        function adjustTableTopMargin() {
+            const topWrap = document.querySelector('.top-wrap');
+            const tableWrap = document.querySelector('.table-wrap');
+            if (topWrap && tableWrap) {
+                const height = topWrap.offsetHeight;
+                tableWrap.style.marginTop = `${height}px`;
+            }
+        }
+    </script>
+    
+</body>
+</html>
